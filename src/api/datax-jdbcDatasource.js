@@ -41,18 +41,17 @@ export function deleted(data) {
   })
 }
 
+export function selectOne(data) {
+  return request({
+    url: '/api/jobJdbcDatasource/' + data,
+    method: 'get'
+  })
+}
+
 export function test(data) {
   return request({
     url: '/api/jobJdbcDatasource/test',
     method: 'post',
     data
-  })
-}
-
-export function getDataSourceList(params) {
-  return request({
-    url: '/api/jobJdbcDatasource/all',
-    method: 'get',
-    params
   })
 }

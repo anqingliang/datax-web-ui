@@ -11,15 +11,6 @@ export function getTables(params) {
   })
 }
 
-// 获取schema
-export function getTableSchema(params) {
-  return request({
-    url: '/api/jdbcDatasourceQuery/getDBSchema',
-    method: 'get',
-    params
-  })
-}
-
 // 获取字段
 export function getColumns(params) {
   return request({
@@ -38,12 +29,12 @@ export function getColumnsByQuerySql(params) {
   })
 }
 
-// 根据datasourceID、tablename创建表【目标端】
-export function createTable(params) {
+// 根据datasourceID、tablename、columns（数组）拼接的json传给后台三个条件创建表【目标端】
+export function createTable(query) {
   return request({
     url: '/api/jdbcDatasourceQuery/createTable',
     method: 'post',
-    params
+    data: query
   })
 }
 // 判断字段是否存在，存在，即更新值，否则添加字段

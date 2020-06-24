@@ -88,6 +88,7 @@
           >
             <el-option v-for="item in dataSources" :key="item.value" :label="item.label" :value="item.value" />
           </el-select>
+          <el-switch v-show="kerberosBtnShow" v-model="temp.isKerberos" inactive-text="是否需要Kerberos认证" @change="getkerberosFlag(temp.isKerberos)" />
         </el-form-item>
         <el-form-item label="数据源名称" prop="datasourceName">
           <el-input v-model="temp.datasourceName" placeholder="数据源名称" style="width: 40%" />
@@ -95,15 +96,21 @@
         <el-form-item label="数据源分组" prop="datasourceGroup">
           <el-input v-model="temp.datasourceGroup" placeholder="数据源分组" style="width: 40%" />
         </el-form-item>
-        <el-form-item v-if="jdbc" label="用户名">
+        <el-form-item v-show="hiveFlag" label="用户名" prop="user">
+          <el-input v-model="temp.user" placeholder="请输入XXX@XXX.XXX格式" style="width: 60%" />
+        </el-form-item>
+        <el-form-item v-show="hiveFlag" label="keytab文件" prop="keytabPath">
+          <el-input v-model="temp.keytabPath" placeholder="keytab文件位置" style="width: 60%" />
+        </el-form-item>
+        <el-form-item v-if="userFlag" label="用户名">
           <el-input v-model="temp.jdbcUsername" placeholder="用户名" style="width: 40%" />
         </el-form-item>
-        <el-form-item v-if="visible" v-show="jdbc" label="密码">
+        <el-form-item v-if="visible" v-show="userFlag" label="密码">
           <el-input v-model="temp.jdbcPassword" type="password" placeholder="密码" style="width: 40%">
             <i slot="suffix" title="显示密码" style="cursor:pointer" class="el-icon-view" @click="changePass('show')" />
           </el-input>
         </el-form-item>
-        <el-form-item v-show="jdbc" v-else label="密码">
+        <el-form-item v-show="userFlag" v-else label="密码">
           <el-input v-model="temp.jdbcPassword" type="text" placeholder="密码" style="width: 40%">
             <i slot="suffix" title="隐藏密码" style="cursor:pointer" class="el-icon-check" @click="changePass('hide')" />
           </el-input>
@@ -228,7 +235,17 @@ export default {
         comments: '',
         datasource: '',
         zkAdress: '',
-        databaseName: ''
+        databaseName: '',
+        user: '',
+        iniPath: '',
+        keytabPath: '',
+        connectionParams: '',
+        isKerberos: false,
+        nameStr: ''
+        // connectionParams: { user: this.temp.user,
+        //   iniPath: this.temp.iniPath,
+        //   keytabPath: this.temp.keytabPath
+        // }
       },
       visible: true,
       dataSources: [
@@ -243,7 +260,11 @@ export default {
       ],
       jdbc: true,
       hbase: false,
-      mongodb: false
+      mongodb: false,
+      userFlag: true,
+      hiveFlag: false,
+      kerberosBtnShow: false,
+      hiveJdbcUrl: ''
     }
   },
   created() {
@@ -251,6 +272,9 @@ export default {
   },
   methods: {
     selectDataSource(datasource) {
+      this.userFlag = true
+      this.hiveFlag = false
+      this.kerberosBtnShow = false
       if (datasource === 'mysql') {
         this.temp.jdbcUrl = 'jdbc:mysql://{host}:{port}/{database}'
         this.temp.jdbcDriverClass = 'com.mysql.jdbc.Driver'
@@ -267,10 +291,9 @@ export default {
         this.temp.jdbcUrl = 'jdbc:clickhouse://{host}:{port}/{database}'
         this.temp.jdbcDriverClass = 'ru.yandex.clickhouse.ClickHouseDriver'
       } else if (datasource === 'hive') {
+        this.kerberosBtnShow = true
         this.temp.jdbcUrl = 'jdbc:hive2://{host}:{port}/{database}'
         this.temp.jdbcDriverClass = 'org.apache.hive.jdbc.HiveDriver'
-        this.hbase = this.mongodb = false
-        this.jdbc = true
       }
       this.getShowStrategy(datasource)
     },
@@ -293,12 +316,22 @@ export default {
         jdbcPassword: '',
         jdbcUrl: '',
         jdbcDriverClass: '',
-        comments: ''
+        comments: '',
+        user: '',
+        iniPath: '',
+        keytabPath: '',
+        connectionParams: '',
+        isKerberos: false,
+        nameStr: ''
       }
     },
     handleCreate() {
       this.resetTemp()
       this.dialogStatus = 'create'
+      this.kerberosBtnShow = false
+      this.hiveFlag = false
+      this.userFlag = true
+      this.temp.isKerberos = false
       this.dialogFormVisible = true
       this.$nextTick(() => {
         this.$refs['dataForm'].clearValidate()
@@ -307,6 +340,22 @@ export default {
     createData() {
       this.$refs['dataForm'].validate((valid) => {
         if (valid) {
+          var nameStrs = this.temp.user.split('@')
+          var connetionParams = { user: this.temp.user,
+            iniPath: this.temp.iniPath,
+            keytabPath: this.temp.keytabPath
+          }
+          if (this.temp.datasource === 'hive') {
+            connetionParams.isKerberos = this.temp.isKerberos
+            if (connetionParams.isKerberos) {
+              this.temp.jdbcUsername = ''
+              this.temp.jdbcPassword = ''
+            }
+          } else {
+            connetionParams.isKerberos = false
+          }
+          this.temp.nameStr = nameStrs[0]
+          this.temp.connectionParams = JSON.stringify(connetionParams)
           datasourceApi.created(this.temp).then(() => {
             this.fetchData()
             this.dialogFormVisible = false
@@ -323,6 +372,8 @@ export default {
     testDataSource() {
       this.$refs['dataForm'].validate((valid) => {
         if (valid) {
+          var nameStrs = this.temp.user.split('@')
+          this.temp.nameStr = nameStrs[0]
           datasourceApi.test(this.temp).then(response => {
             if (response.data === false) {
               this.$notify({
@@ -344,8 +395,33 @@ export default {
       })
     },
     handleUpdate(row) {
+      this.kerberosBtnShow = false
+      this.hiveFlag = false
+      this.userFlag = true
+      this.temp.isKerberos = false
+
       this.getShowStrategy(row.datasource)
-      this.temp = Object.assign({}, row) // copy obj
+      // 通过id 查询单条记录,查询的记录需要将用户名和密码解密
+      datasourceApi.selectOne(row.id).then(response => {
+        row.jdbcUsername = response.jdbcUsername
+        row.jdbcPassword = response.jdbcPassword
+        if (row.connectionParams !== '' && row.connectionParams !== null) {
+          var connectionParams = JSON.parse(row.connectionParams)
+          row.user = connectionParams.user
+          row.iniPath = connectionParams.iniPath
+          row.keytabPath = connectionParams.keytabPath
+          row.isKerberos = connectionParams.isKerberos
+          row.nameStr = connectionParams.nameStr
+        }
+        // 如果是kerberos 认证需要展示 kerberos 信息
+        if (row.isKerberos) {
+          this.kerberosBtnShow = true
+          this.hiveFlag = true
+          this.userFlag = false
+          this.temp.isKerberos = true
+        }
+        this.temp = Object.assign({}, row) // copy obj
+      })
       this.dialogStatus = 'update'
       this.dialogFormVisible = true
       this.$nextTick(() => {
@@ -355,6 +431,23 @@ export default {
     updateData() {
       this.$refs['dataForm'].validate((valid) => {
         if (valid) {
+          this.temp.connectionParams = {}
+          var connetionParams = { user: this.temp.user,
+            iniPath: this.temp.iniPath,
+            keytabPath: this.temp.keytabPath
+          }
+          // 如果是hive 需要将connetionParams.isKerberos 设置为this.temp.isKerberos,其他全为false
+          if (this.temp.datasource === 'hive') {
+            connetionParams.isKerberos = this.temp.isKerberos
+            // 如果是kerberos 认证需要将用户名和密码设置为空
+            if (connetionParams.isKerberos) {
+              this.temp.jdbcUsername = ''
+              this.temp.jdbcPassword = ''
+            }
+          } else {
+            connetionParams.isKerberos = false
+          }
+          this.temp.connectionParams = JSON.stringify(connetionParams)
           const tempData = Object.assign({}, this.temp)
           datasourceApi.updated(tempData).then(() => {
             this.fetchData()
@@ -371,12 +464,15 @@ export default {
     },
     getShowStrategy(datasource) {
       if (datasource === 'hbase') {
-        this.jdbc = this.mongodb = false
+        this.jdbc = this.mongodb = this.userFlag = false
         this.hbase = true
       } else if (datasource === 'mongodb') {
-        this.jdbc = this.hbase = false
+        this.jdbc = this.mongodb = this.userFlag = false
         this.mongodb = true
         this.temp.jdbcUrl = 'mongodb://[username:password@]host1[:port1][,...hostN[:portN]]][/[database][?options]]'
+      } else if (datasource === 'hive' && this.temp.isKerberos) {
+        this.mongodb = this.userFlag = false
+        this.hiveFlag = true
       } else {
         this.hbase = this.mongodb = false
         this.jdbc = true
@@ -416,6 +512,13 @@ export default {
     },
     changePass(value) {
       this.visible = !(value === 'show')
+    },
+    getkerberosFlag(flag) {
+      this.temp.isKerberos = flag
+      // if (this.temp.jdbcUrl !== '') {
+      //   this.hiveJdbcUrl = this.temp.jdbcUrl
+      // }
+      this.selectDataSource(this.temp.datasource)
     }
   }
 }

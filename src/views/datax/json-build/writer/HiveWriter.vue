@@ -77,6 +77,7 @@
 import * as dsQueryApi from '@/api/metadata-query'
 import { list as jdbcDsList } from '@/api/datax-jdbcDatasource'
 import Bus from '../busWriter'
+import * as datasourceApi from '@/api/datax-jdbcDatasource'
 export default {
   name: 'HiveWriter',
   data() {
@@ -162,6 +163,35 @@ export default {
       this.wDsList.find((item) => {
         if (item.id === e) {
           this.dataSource = item.datasource
+          // 如果是hive 需要 做korbros 认证
+          if (item.datasource === 'hive') {
+            var connectionParams = JSON.parse(item.connectionParams)
+            item.nameStr = connectionParams.user.split('@')[0]
+            item.iniPath = connectionParams.iniPath
+            item.keytabPath = connectionParams.keytabPath
+            item.isKerberos = connectionParams.isKerberos
+            // 访问后台korbros 认证接口
+            datasourceApi.test(item).then(response => {
+              if (response.data === false) {
+                this.$notify({
+                  title: 'Fail',
+                  message: '验证失败',
+                  type: 'fail',
+                  duration: 2000
+                })
+              } else {
+                this.readerForm.haveKerberos = true
+                this.readerForm.kerberosKeytabFilePath = connectionParams.keytabPath
+                this.readerForm.kerberosPrincipal = connectionParams.user
+                this.$notify({
+                  title: 'Test Success',
+                  message: '验证成功',
+                  type: 'success',
+                  duration: 2000
+                })
+              }
+            })
+          }
         }
       })
       Bus.dataSourceId = e

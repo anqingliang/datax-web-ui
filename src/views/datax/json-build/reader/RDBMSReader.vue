@@ -12,7 +12,7 @@
         </el-select>
       </el-form-item>
       <el-form-item v-show="dataSource==='postgresql' || dataSource==='oracle' ||dataSource==='sqlserver'" label="Schema：" prop="tableSchema">
-        <el-select v-model="readerForm.tableSchema" allow-create default-first-option filterable style="width: 300px" @change="schemaChange">
+        <el-select v-model="readerForm.tableSchema" filterable style="width: 300px" @change="schemaChange">
           <el-option
             v-for="item in schemaList"
             :key="item"
@@ -163,7 +163,11 @@ export default {
         }
       })
       Bus.dataSourceId = e
-      this.$emit('selectDataSource', this.dataSource)
+      if (this.dataSource === 'hive') {
+        this.$emit('testHive', this.dataSource, e)
+      } else {
+        this.$emit('selectDataSource', this.dataSource, e)
+      }
     },
     getTableColumns() {
       const obj = {

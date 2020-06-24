@@ -1,7 +1,7 @@
 <template>
   <div class="app-container">
-    <RDBMSReader v-show="dataSource!=='hive' && dataSource!=='hbase' && dataSource!=='mongodb'" ref="rdbmsreader" @selectDataSource="showDataSource" />
-    <HiveReader v-show="dataSource==='hive'" ref="hivereader" @selectDataSource="showDataSource" />
+    <RDBMSReader v-show="dataSource!=='hive' && dataSource!=='hbase' && dataSource!=='mongodb'" ref="rdbmsreader" @selectDataSource="showDataSource" @testHive="testHive" />
+    <HiveReader v-show="dataSource==='hive'" ref="hivereader" @selectDataSource="showDataSource" @testHive="testHive" />
     <HBaseReader v-show="dataSource==='hbase'" ref="hbasereader" @selectDataSource="showDataSource" />
     <MongoDBReader v-show="dataSource==='mongodb'" ref="mongodbreader" @selectDataSource="showDataSource" />
   </div>
@@ -17,7 +17,8 @@ export default {
   components: { RDBMSReader, HiveReader, HBaseReader, MongoDBReader },
   data() {
     return {
-      dataSource: ''
+      dataSource: '',
+      dataSourceId: ''
     }
   },
   methods: {
@@ -32,9 +33,14 @@ export default {
         return this.$refs.rdbmsreader.getData()
       }
     },
-    showDataSource(data) {
-      this.dataSource = data
+    showDataSource(dataSource, dataSourceId) {
+      this.dataSource = dataSource
+      this.dataSourceId = dataSourceId
       this.getData()
+    },
+    testHive(dataSource, dataSourceId) {
+      this.$refs.hivereader.rDsChange(dataSourceId)
+      return this.$refs.hivereader.getData()
     }
   }
 }

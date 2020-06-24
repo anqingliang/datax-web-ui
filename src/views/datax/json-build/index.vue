@@ -188,6 +188,7 @@ export default {
     // 构建json
     buildJson() {
       const readerData = this.$refs.reader.getData()
+      console.info('readerData  index------->', readerData)
       const writeData = this.$refs.writer.getData()
       const readerColumns = this.$refs.mapper.getLColumns()
       const writerColumns = this.$refs.mapper.getRColumns()
@@ -198,6 +199,12 @@ export default {
         readerFieldDelimiter: readerData.fieldDelimiter,
         readerSkipHeader: readerData.skipHeader
       }
+      if (readerData.haveKerberos) {
+        hiveReader.haveKerberos = readerData.haveKerberos
+        hiveReader.kerberosKeytabFilePath = readerData.kerberosKeytabFilePath
+        hiveReader.kerberosPrincipal = readerData.kerberosPrincipal
+      }
+      console.info('hiveReader--------------->', hiveReader)
       const hiveWriter = {
         writerDefaultFS: writeData.defaultFS,
         writerFileType: writeData.fileType,
@@ -206,6 +213,12 @@ export default {
         writeMode: writeData.writeMode,
         writeFieldDelimiter: writeData.fieldDelimiter
       }
+      if (writeData.haveKerberos) {
+        hiveWriter.haveKerberos = writeData.haveKerberos
+        hiveWriter.kerberosKeytabFilePath = writeData.kerberosKeytabFilePath
+        hiveWriter.kerberosPrincipal = writeData.kerberosPrincipal
+      }
+      console.info('hiveWriter--------------->', hiveWriter)
       const hbaseReader = {
         readerMode: readerData.mode,
         readerMaxVersion: readerData.maxVersion,

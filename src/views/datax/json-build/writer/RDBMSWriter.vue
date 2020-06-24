@@ -170,7 +170,11 @@ export default {
         }
       })
       Bus.dataSourceId = e
-      this.$emit('selectDataSource', this.dataSource)
+      if (this.dataSource === 'hive') {
+        this.$emit('testHive', this.dataSource, e)
+      } else {
+        this.$emit('selectDataSource', this.dataSource, e)
+      }
     },
     // 获取表字段
     getColumns() {
